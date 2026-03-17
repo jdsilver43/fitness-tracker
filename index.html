@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#0d0d0d">
 <title>Fitness Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d0d0d;font-family:'DM Sans',sans-serif;color:#f0f0f0;overflow-x:hidden}
@@ -225,9 +227,21 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
 </div>
 
 <script>
+// ===== FIREBASE =====
+const firebaseConfig = {
+  apiKey: "AIzaSyB8jiEuxxDbESsLEW9DBnw8nw38l5RvOKI",
+  authDomain: "fitness-tracker-2006c.firebaseapp.com",
+  projectId: "fitness-tracker-2006c",
+  storageBucket: "fitness-tracker-2006c.firebasestorage.app",
+  messagingSenderId: "511659092536",
+  appId: "1:511659092536:web:92cf9d04772bdff04854cd"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 // ===== STATE =====
-let workouts = JSON.parse(localStorage.getItem('ft-workouts') || '[]');
-let weightEntries = JSON.parse(localStorage.getItem('ft-weight') || '[]');
+let workouts = [];
+let weightEntries = [];
 let currentTab = 'log';
 let logMode = 'workout';
 let workoutType = 'strength';
@@ -236,6 +250,23 @@ let isListening = false;
 let transcript = '';
 let recognition = null;
 let selectedExercise = '';
+let firebaseReady = false;
+
+// Real-time listeners — sync across devices
+db.collection('workouts').orderBy('createdAt', 'desc').onSnapshot(snap => {
+  workouts = snap.docs.map(d => ({ _fbId: d.id, ...d.data() }));
+  renderStats();
+  if (currentTab === 'history') renderHistory();
+  if (currentTab === 'charts') renderCharts();
+  firebaseReady = true;
+});
+
+db.collection('weightEntries').orderBy('createdAt', 'desc').onSnapshot(snap => {
+  weightEntries = snap.docs.map(d => ({ _fbId: d.id, ...d.data() }));
+  renderStats();
+  if (currentTab === 'history') renderHistory();
+  if (currentTab === 'charts') renderCharts();
+});
 
 const TYPES = [
   { id:'strength', label:'Strength', icon:'🏋️' },
@@ -250,10 +281,7 @@ const TYPES = [
 // ===== UTILS =====
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function formatDate(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }); }
-function save() {
-  localStorage.setItem('ft-workouts', JSON.stringify(workouts));
-  localStorage.setItem('ft-weight', JSON.stringify(weightEntries));
-}
+// save() no longer needed — Firebase handles persistence
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -335,11 +363,14 @@ function saveWorkout() {
   const nts = document.getElementById('notes-input').value;
   const exs = exercises.filter(e => e.name);
   if (!dur && exs.length === 0) return;
-  workouts.unshift({ id: Date.now().toString(), date: todayISO(), type: workoutType, duration: parseInt(dur) || 0, notes: nts, exercises: exs });
+  const entry = { id: Date.now().toString(), date: todayISO(), type: workoutType, duration: parseInt(dur) || 0, notes: nts, exercises: exs, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+  db.collection('workouts').add(entry);
   // Also save weight if present
   const wi = document.getElementById('weight-input').value;
-  if (wi) { weightEntries.unshift({ id: (Date.now()+1).toString(), date: todayISO(), value: parseFloat(wi) }); document.getElementById('weight-input').value = ''; }
-  save(); renderStats();
+  if (wi) {
+    db.collection('weightEntries').add({ id: (Date.now()+1).toString(), date: todayISO(), value: parseFloat(wi), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('weight-input').value = '';
+  }
   document.getElementById('duration-input').value = '';
   document.getElementById('notes-input').value = '';
   exercises = [{ name:'', sets:'', reps:'', weight:'' }]; renderExercises();
@@ -352,8 +383,7 @@ function saveWorkout() {
 function saveWeight() {
   const v = document.getElementById('weight-input').value;
   if (!v) return;
-  weightEntries.unshift({ id: Date.now().toString(), date: todayISO(), value: parseFloat(v) });
-  save(); renderStats();
+  db.collection('weightEntries').add({ id: Date.now().toString(), date: todayISO(), value: parseFloat(v), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
   document.getElementById('weight-input').value = '';
   showToast('Weight logged!');
 }
@@ -367,7 +397,7 @@ function renderHistory() {
     html += `<div class="history-card" style="animation-delay:${i * .04}s"><div class="history-header">
       <span class="history-icon">${t.icon}</span><div style="flex:1"><div class="history-title">${t.label}</div>
       <div class="history-date">${formatDate(w.date)}${w.duration ? ' · ' + w.duration + ' min' : ''}</div></div>
-      <button class="del-btn" onclick="deleteWorkout('${w.id}')">×</button></div>`;
+      <button class="del-btn" onclick="deleteWorkout('${w._fbId}')">×</button></div>`;
     if (w.exercises?.length) {
       html += '<div class="exercise-list">';
       w.exercises.forEach(e => { html += `<div class="exercise-item">${e.name}${e.sets && e.reps ? ' — ' + e.sets + '×' + e.reps : ''}${e.weight ? ' @ ' + e.weight + ' lbs' : ''}</div>`; });
@@ -379,13 +409,13 @@ function renderHistory() {
   html += '<div class="section-label" style="margin-top:28px">Weight Log</div>';
   if (weightEntries.length === 0) html += '<div class="empty">No weight entries yet.</div>';
   weightEntries.slice(0, 30).forEach((e, i) => {
-    html += `<div class="weight-row" style="animation-delay:${i * .04}s"><span class="weight-val">${e.value} lbs</span><span class="history-date">${formatDate(e.date)}</span><button class="del-btn" onclick="deleteWeight('${e.id}')">×</button></div>`;
+    html += `<div class="weight-row" style="animation-delay:${i * .04}s"><span class="weight-val">${e.value} lbs</span><span class="history-date">${formatDate(e.date)}</span><button class="del-btn" onclick="deleteWeight('${e._fbId}')">×</button></div>`;
   });
   document.getElementById('tab-history').innerHTML = html;
 }
 
-function deleteWorkout(id) { workouts = workouts.filter(w => w.id !== id); save(); renderHistory(); renderStats(); }
-function deleteWeight(id) { weightEntries = weightEntries.filter(w => w.id !== id); save(); renderHistory(); renderStats(); }
+function deleteWorkout(fbId) { db.collection('workouts').doc(fbId).delete(); showToast('Deleted'); }
+function deleteWeight(fbId) { db.collection('weightEntries').doc(fbId).delete(); showToast('Deleted'); }
 
 // ===== CHARTS (SVG) =====
 function renderCharts() {
