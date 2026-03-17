@@ -602,8 +602,16 @@ async function handleParse() {
         messages: [{ role: 'user', content: transcript }],
       }),
     });
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      let errMsg = 'API error (' + resp.status + ')';
+      try { const e = JSON.parse(errBody); errMsg = e.error?.message || errMsg; } catch(x) {}
+      throw new Error(errMsg);
+    }
     const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'API returned an error');
     const text = data.content?.map(c => c.text || '').join('') || '';
+    if (!text) throw new Error('Empty response from API. Try speaking again.');
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
     // Fill form
