@@ -123,6 +123,24 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
 
 .chart-container{width:100%;overflow-x:auto;margin-top:8px}
 .chart-svg{display:block}
+
+.plan-day{margin-bottom:20px}
+.plan-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer}
+.plan-day-title{font-size:15px;font-weight:700;color:#ddd;letter-spacing:-.3px}
+.plan-day-sub{font-size:12px;color:#666;font-family:'Space Mono',monospace}
+.plan-chevron{color:#555;font-size:18px;transition:transform .2s}
+.plan-chevron.open{transform:rotate(90deg)}
+.plan-exercise{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#1a1a1a;border:1px solid #222;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .15s}
+.plan-exercise:active{transform:scale(.98);background:#222}
+.plan-exercise-name{flex:1;font-size:14px;font-weight:500;color:#ccc}
+.plan-exercise-detail{font-size:12px;color:#666;font-family:'Space Mono',monospace}
+.plan-exercise-add{color:#E85D3A;font-size:18px;font-weight:700;flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(232,93,58,.1)}
+.plan-note{font-size:11px;color:#555;font-style:italic;margin-top:2px}
+.plan-log-btn{background:#E85D3A;border:none;border-radius:10px;padding:12px;color:#0d0d0d;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;letter-spacing:-.3px}
+.plan-section-label{font-size:11px;color:#E85D3A;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.plan-goal{background:#161616;border:1px solid #222;border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.plan-goal-title{font-size:13px;font-weight:700;color:#ddd;margin-bottom:4px}
+.plan-goal-text{font-size:12px;color:#666;line-height:1.5}
 </style>
 </head>
 <body>
@@ -158,6 +176,7 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
   <!-- Tabs -->
   <div class="tab-bar">
     <button class="tab active" data-tab="log" onclick="switchTab('log')">Log</button>
+    <button class="tab" data-tab="plan" onclick="switchTab('plan')">Plan</button>
     <button class="tab" data-tab="history" onclick="switchTab('history')">History</button>
     <button class="tab" data-tab="charts" onclick="switchTab('charts')">Charts</button>
   </div>
@@ -219,6 +238,9 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
     <!-- HISTORY TAB -->
     <div class="tab-content" id="tab-history"></div>
 
+    <!-- PLAN TAB -->
+    <div class="tab-content" id="tab-plan"></div>
+
     <!-- CHARTS TAB -->
     <div class="tab-content" id="tab-charts"></div>
   </div>
@@ -227,8 +249,10 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+
 // ===== FIREBASE =====
-const firebaseConfig = {
+var firebaseConfig = {
   apiKey: "AIzaSyB8jiEuxxDbESsLEW9DBnw8nw38l5RvOKI",
   authDomain: "fitness-tracker-2006c.firebaseapp.com",
   projectId: "fitness-tracker-2006c",
@@ -237,20 +261,20 @@ const firebaseConfig = {
   appId: "1:511659092536:web:92cf9d04772bdff04854cd"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+var db = firebase.firestore();
 
 // ===== STATE =====
-let workouts = [];
-let weightEntries = [];
-let currentTab = 'log';
-let logMode = 'workout';
-let workoutType = 'strength';
-let exercises = [{ name: '', sets: '', reps: '', weight: '' }];
-let isListening = false;
-let transcript = '';
-let recognition = null;
-let selectedExercise = '';
-let firebaseReady = false;
+var workouts = [];
+var weightEntries = [];
+var currentTab = 'log';
+var logMode = 'workout';
+var workoutType = 'strength';
+var exercises = [{ name: '', sets: '', reps: '', weight: '' }];
+var isListening = false;
+var transcript = '';
+var recognition = null;
+var selectedExercise = '';
+var firebaseReady = false;
 
 // Real-time listeners — sync across devices
 db.collection('workouts').orderBy('createdAt', 'desc').onSnapshot(snap => {
@@ -268,7 +292,7 @@ db.collection('weightEntries').orderBy('createdAt', 'desc').onSnapshot(snap => {
   if (currentTab === 'charts') renderCharts();
 });
 
-const TYPES = [
+var TYPES = [
   { id:'strength', label:'Strength', icon:'🏋️' },
   { id:'running', label:'Running', icon:'🏃' },
   { id:'cycling', label:'Cycling', icon:'🚴' },
@@ -307,6 +331,7 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'history') renderHistory();
   if (tab === 'charts') renderCharts();
+  if (tab === 'plan') renderPlan();
   renderStats();
 }
 
@@ -334,12 +359,13 @@ function setWorkoutType(id) { workoutType = id; renderTypeGrid(); }
 
 // ===== EXERCISES =====
 function renderExercises() {
+  window.exercises = exercises;
   document.getElementById('exercises-list').innerHTML = exercises.map((ex, i) => `
     <div class="exercise-row">
-      <input class="input name" placeholder="Exercise" value="${ex.name}" oninput="exercises[${i}].name=this.value">
-      <input class="input small" placeholder="Sets" type="number" value="${ex.sets}" oninput="exercises[${i}].sets=this.value">
-      <input class="input small" placeholder="Reps" type="number" value="${ex.reps}" oninput="exercises[${i}].reps=this.value">
-      <input class="input small" placeholder="lbs" type="number" value="${ex.weight}" oninput="exercises[${i}].weight=this.value">
+      <input class="input name" placeholder="Exercise" value="${ex.name}" oninput="window.exercises[${i}].name=this.value">
+      <input class="input small" placeholder="Sets" type="number" value="${ex.sets}" oninput="window.exercises[${i}].sets=this.value">
+      <input class="input small" placeholder="Reps" type="number" value="${ex.reps}" oninput="window.exercises[${i}].reps=this.value">
+      <input class="input small" placeholder="lbs" type="number" value="${ex.weight}" oninput="window.exercises[${i}].weight=this.value">
       ${exercises.length > 1 ? `<button class="remove-btn" onclick="removeExerciseRow(${i})">×</button>` : ''}
     </div>
   `).join('');
@@ -672,10 +698,182 @@ async function handleParse() {
   document.getElementById('parsing-bar').classList.remove('show');
 }
 
+// ===== WORKOUT PLAN =====
+var PLAN = [
+  {
+    day: 'Day 1 — Chest & Back',
+    when: 'Monday',
+    desc: 'Heavy pressing + pull balance',
+    type: 'strength',
+    exercises: [
+      { name:'Barbell Bench Press', sets:'4', reps:'5-7', notes:'Main strength lift. Full ROM, 3 sec eccentric.' },
+      { name:'Incline DB Press', sets:'3', reps:'8-10', notes:'30° incline. Upper chest. Squeeze at top.' },
+      { name:'Seated Cable Row', sets:'4', reps:'6-8', notes:'Squeeze shoulder blades together at peak.' },
+      { name:'Cable Flye (low-to-high)', sets:'3', reps:'12-15', notes:'Upper chest isolation. Constant tension.' },
+      { name:'Lat Pulldown', sets:'3', reps:'10-12', notes:'Wide grip. Full stretch at top, pull to upper chest.' },
+      { name:'Face Pulls', sets:'3', reps:'15-20', notes:'Rear delts + shoulder health. Non-negotiable.' },
+    ]
+  },
+  {
+    day: 'Day 2 — Legs & Core',
+    when: 'Wednesday',
+    desc: 'Lower body strength + calorie burn',
+    type: 'strength',
+    exercises: [
+      { name:'Barbell Back Squat', sets:'4', reps:'6-8', notes:'Depth to parallel or below.' },
+      { name:'Romanian Deadlift', sets:'3', reps:'8-10', notes:'Push hips back, slight knee bend.' },
+      { name:'Walking Lunges (DB)', sets:'3', reps:'10/leg', notes:'Stay upright, control each rep.' },
+      { name:'Leg Curl', sets:'3', reps:'10-12', notes:'Squeeze at peak contraction.' },
+      { name:'Calf Raises', sets:'4', reps:'12-15', notes:'Full stretch at bottom, pause at top.' },
+      { name:'Hanging Leg Raises', sets:'3', reps:'10-15', notes:'Control the negative — no swinging.' },
+    ]
+  },
+  {
+    day: 'Day 3 — Chest, Shoulders & Arms',
+    when: 'Friday',
+    desc: 'Chest volume + upper body detail',
+    type: 'strength',
+    exercises: [
+      { name:'Incline Barbell Press', sets:'4', reps:'6-8', notes:'Upper chest strength. Slightly narrower grip.' },
+      { name:'Weighted Dips', sets:'3', reps:'8-12', notes:'Lean forward for chest emphasis.' },
+      { name:'Pec Deck / DB Flye', sets:'3', reps:'12-15', notes:'Deep stretch, controlled squeeze.' },
+      { name:'DB Overhead Press', sets:'3', reps:'8-10', notes:'Full lockout at top.' },
+      { name:'Lateral Raises', sets:'3', reps:'12-15', notes:'Slight forward lean, control the weight.' },
+      { name:'EZ Curl', sets:'3', reps:'10-12', notes:'Superset with tricep ext. Full ROM.' },
+      { name:'Overhead Tricep Extension', sets:'3', reps:'10-12', notes:'Superset with curls. Controlled reps.' },
+    ]
+  },
+  {
+    day: 'Day 4 — Active Day',
+    when: 'Saturday or Sunday',
+    desc: 'Mobility, core, active recovery',
+    type: 'other',
+    exercises: [
+      { name:'Rock Climbing', sets:'-', reps:'60-90 min', notes:'Grip, back, core. Great pulling balance.' },
+      { name:'Pilates', sets:'-', reps:'45-60 min', notes:'Deep core, hip mobility. Highest ROI for your goals.' },
+      { name:'Yoga', sets:'-', reps:'60 min', notes:'Mobility, flexibility, recovery.' },
+      { name:'Group Fitness Class', sets:'-', reps:'45-60 min', notes:'Cardio + conditioning. Avoid leg-heavy before squat day.' },
+    ]
+  }
+];
+
+var openPlanDays = { 0: true, 1: false, 2: false, 3: false };
+
+function getTodayDayIndex() {
+  const d = new Date().getDay(); // 0=Sun,1=Mon...
+  if (d === 1) return 0; // Monday -> Day 1
+  if (d === 3) return 1; // Wednesday -> Day 2
+  if (d === 5) return 2; // Friday -> Day 3
+  if (d === 0 || d === 6) return 3; // Weekend -> Day 4
+  return -1;
+}
+
+function renderPlan() {
+  const todayIdx = getTodayDayIndex();
+  // Auto-open today's workout
+  if (todayIdx >= 0) openPlanDays[todayIdx] = true;
+
+  let html = '';
+
+  // Goal banner
+  html += '<div class="plan-goal"><div class="plan-goal-title">🎯 194 lb → &lt;190 lb by Memorial Day</div><div class="plan-goal-text">Chest definition + fat loss · ~11 weeks · 2,100–2,300 cal/day · 170–195g protein</div></div>';
+
+  PLAN.forEach((day, di) => {
+    const isOpen = openPlanDays[di];
+    const isToday = di === todayIdx;
+    html += `<div class="card plan-day" style="${isToday ? 'border-color:#2a2018' : ''}">`;
+    html += `<div class="plan-day-header" onclick="togglePlanDay(${di})">`;
+    html += `<div><div class="plan-day-title">${isToday ? '▸ ' : ''}${day.day}</div><div class="plan-day-sub">${day.when} · ${day.desc}</div></div>`;
+    html += `<span class="plan-chevron ${isOpen ? 'open' : ''}">›</span></div>`;
+
+    if (isOpen) {
+      day.exercises.forEach((ex, ei) => {
+        html += `<div class="plan-exercise" onclick="addPlanExercise(${di},${ei})">`;
+        html += `<div><div class="plan-exercise-name">${ex.name}</div>`;
+        if (ex.notes) html += `<div class="plan-note">${ex.notes}</div>`;
+        html += `</div>`;
+        html += `<div class="plan-exercise-detail">${ex.sets !== '-' ? ex.sets + ' × ' + ex.reps : ex.reps}</div>`;
+        html += `<div class="plan-exercise-add">+</div>`;
+        html += `</div>`;
+      });
+      if (day.type === 'strength') {
+        html += `<button class="plan-log-btn" onclick="addAllPlanExercises(${di})">Log All ${day.day.split('—')[1]?.trim() || 'Exercises'}</button>`;
+      }
+    }
+    html += '</div>';
+  });
+
+  // Progression note
+  html += '<div style="font-size:11px;color:#444;text-align:center;padding:12px 0">Rest: 90–120s compounds · 60–90s accessories<br>Add 5 lb upper / 10 lb lower when you hit top of rep range</div>';
+
+  document.getElementById('tab-plan').innerHTML = html;
+}
+
+function togglePlanDay(idx) {
+  openPlanDays[idx] = !openPlanDays[idx];
+  renderPlan();
+}
+
+function addPlanExercise(dayIdx, exIdx) {
+  const ex = PLAN[dayIdx].exercises[exIdx];
+  const repsClean = ex.reps.split('-').pop().replace('/leg','');
+  // Add to exercise list in log tab
+  const newEx = { name: ex.name, sets: ex.sets !== '-' ? ex.sets : '', reps: repsClean, weight: '' };
+  // Replace empty first row or append
+  if (exercises.length === 1 && !exercises[0].name) {
+    exercises[0] = newEx;
+  } else {
+    exercises.push(newEx);
+  }
+  workoutType = PLAN[dayIdx].type;
+  renderTypeGrid();
+  renderExercises();
+  showToast(ex.name + ' added to log');
+}
+
+function addAllPlanExercises(dayIdx) {
+  const day = PLAN[dayIdx];
+  exercises = day.exercises.filter(e => e.sets !== '-').map(ex => ({
+    name: ex.name,
+    sets: ex.sets,
+    reps: ex.reps.split('-').pop().replace('/leg',''),
+    weight: ''
+  }));
+  workoutType = day.type;
+  renderTypeGrid();
+  renderExercises();
+  switchTab('log');
+  setLogMode('workout');
+  showToast('All ' + (day.day.split('—')[1]?.trim() || 'exercises') + ' loaded!');
+}
+
 // ===== BOOT =====
 renderTypeGrid();
 renderExercises();
 renderStats();
+renderPlan();
+
+// Expose functions to onclick handlers in HTML
+window.switchTab = switchTab;
+window.toggleSettings = toggleSettings;
+window.saveApiKey = saveApiKey;
+window.toggleMic = toggleMic;
+window.handleParse = handleParse;
+window.setLogMode = setLogMode;
+window.setWorkoutType = setWorkoutType;
+window.addExerciseRow = addExerciseRow;
+window.removeExerciseRow = removeExerciseRow;
+window.saveWorkout = saveWorkout;
+window.saveWeight = saveWeight;
+window.deleteWorkout = deleteWorkout;
+window.deleteWeight = deleteWeight;
+window.selectExercise = selectExercise;
+window.togglePlanDay = togglePlanDay;
+window.addPlanExercise = addPlanExercise;
+window.addAllPlanExercises = addAllPlanExercises;
+window.exercises = exercises;
+
+}); // end DOMContentLoaded
 </script>
 </body>
 </html>
