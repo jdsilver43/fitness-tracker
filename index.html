@@ -124,6 +124,16 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
 .chart-container{width:100%;overflow-x:auto;margin-top:8px}
 .chart-svg{display:block}
 
+.profile-btn{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:6px 12px;color:#E85D3A;font-size:12px;font-weight:700;font-family:'Space Mono',monospace;cursor:pointer;transition:all .2s}
+.profile-btn:active{background:#222}
+.profile-pick{width:100%;padding:14px;background:#161616;border:1px solid #222;border-radius:12px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s}
+.profile-pick:active{background:#1e1e1e;border-color:#E85D3A}
+.profile-pick-avatar{width:40px;height:40px;border-radius:10px;background:#E85D3A;color:#0d0d0d;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-family:'Space Mono',monospace}
+.profile-pick-name{font-size:16px;font-weight:600;color:#ddd}
+.profile-pick-del{margin-left:auto;color:#444;font-size:18px;padding:4px 8px;border:none;background:none;cursor:pointer}
+
+.plan-add-form{display:flex;flex-direction:column;gap:8px;padding:12px;background:#1a1a1a;border:1px dashed #333;border-radius:10px;margin-top:8px}
+
 .plan-day{margin-bottom:20px}
 .plan-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer}
 .plan-day-title{font-size:15px;font-weight:700;color:#ddd;letter-spacing:-.3px}
@@ -145,6 +155,22 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
 </head>
 <body>
 <div class="root" id="app">
+  <!-- Profile Picker (shown on launch if no profile selected) -->
+  <div id="profile-picker" style="display:none;padding:40px 20px;text-align:center;min-height:100vh;flex-direction:column;align-items:center;justify-content:center">
+    <div class="brand" style="width:56px;height:56px;font-size:22px;border-radius:14px;margin-bottom:20px">FT</div>
+    <div class="title" style="margin-bottom:4px">Fitness Tracker</div>
+    <div style="font-size:13px;color:#666;margin-bottom:32px">Choose your profile</div>
+    <div id="profile-list" style="width:100%;max-width:300px"></div>
+    <div style="margin-top:16px;width:100%;max-width:300px">
+      <div style="display:flex;gap:8px">
+        <input id="new-profile-input" class="input" placeholder="New profile name..." style="flex:1">
+        <button class="primary-btn" style="width:auto;margin:0;padding:12px 20px" onclick="createProfile()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App (hidden until profile selected) -->
+  <div id="main-app" style="display:none">
   <!-- Header -->
   <div class="header">
     <div class="header-top">
@@ -152,9 +178,12 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
         <div class="brand">FT</div>
         <div><div class="title">Fitness Tracker</div><div class="subtitle" id="today-date"></div></div>
       </div>
-      <button class="gear-btn" onclick="toggleSettings()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="profile-btn" id="profile-switch-btn" onclick="showProfilePicker()"></button>
+        <button class="gear-btn" onclick="toggleSettings()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
     </div>
     <div class="stats-row" id="stats-row"></div>
   </div>
@@ -244,6 +273,7 @@ input:focus,textarea:focus{outline:none;border-color:#E85D3A!important}
     <!-- CHARTS TAB -->
     <div class="tab-content" id="tab-charts"></div>
   </div>
+  </div><!-- end main-app -->
 
   <div class="toast" id="toast"></div>
 </div>
@@ -275,22 +305,114 @@ var transcript = '';
 var recognition = null;
 var selectedExercise = '';
 var firebaseReady = false;
+var currentProfile = localStorage.getItem('ft-profile') || '';
+var profiles = [];
+var customPlanExercises = []; // synced from Firebase
+var unsubWorkouts = null;
+var unsubWeight = null;
+var unsubCustomPlan = null;
 
-// Real-time listeners — sync across devices
-db.collection('workouts').orderBy('createdAt', 'desc').onSnapshot(snap => {
-  workouts = snap.docs.map(d => ({ _fbId: d.id, ...d.data() }));
-  renderStats();
-  if (currentTab === 'history') renderHistory();
-  if (currentTab === 'charts') renderCharts();
-  firebaseReady = true;
-});
+// ===== PROFILE SYSTEM =====
+function profileCollection(name) {
+  // e.g. "profiles/Jason/workouts"
+  return 'profiles/' + currentProfile + '/' + name;
+}
 
-db.collection('weightEntries').orderBy('createdAt', 'desc').onSnapshot(snap => {
-  weightEntries = snap.docs.map(d => ({ _fbId: d.id, ...d.data() }));
+function loadProfiles() {
+  db.collection('profileList').onSnapshot(function(snap) {
+    profiles = snap.docs.map(function(d) { return { _fbId: d.id, name: d.data().name }; });
+    renderProfilePicker();
+    if (currentProfile && profiles.some(function(p) { return p.name === currentProfile; })) {
+      enterApp();
+    } else if (profiles.length === 0) {
+      showProfilePicker();
+    } else {
+      showProfilePicker();
+    }
+  });
+}
+
+function renderProfilePicker() {
+  var el = document.getElementById('profile-list');
+  if (!el) return;
+  el.innerHTML = profiles.map(function(p) {
+    return '<div class="profile-pick" onclick="selectProfile(\'' + p.name.replace(/'/g, "\\'") + '\')">' +
+      '<div class="profile-pick-avatar">' + p.name.charAt(0).toUpperCase() + '</div>' +
+      '<div class="profile-pick-name">' + p.name + '</div>' +
+      '<button class="profile-pick-del" onclick="event.stopPropagation();deleteProfile(\'' + p._fbId + '\',\'' + p.name.replace(/'/g, "\\'") + '\')" title="Delete">×</button>' +
+      '</div>';
+  }).join('');
+}
+
+function showProfilePicker() {
+  document.getElementById('profile-picker').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+}
+
+function selectProfile(name) {
+  currentProfile = name;
+  localStorage.setItem('ft-profile', name);
+  enterApp();
+}
+
+function createProfile() {
+  var input = document.getElementById('new-profile-input');
+  var name = input.value.trim();
+  if (!name) return;
+  if (profiles.some(function(p) { return p.name.toLowerCase() === name.toLowerCase(); })) {
+    showToast('Profile already exists');
+    return;
+  }
+  db.collection('profileList').add({ name: name });
+  input.value = '';
+  selectProfile(name);
+}
+
+function deleteProfile(fbId, name) {
+  if (!confirm('Delete profile "' + name + '"? This cannot be undone.')) return;
+  db.collection('profileList').doc(fbId).delete();
+  if (currentProfile === name) {
+    currentProfile = '';
+    localStorage.removeItem('ft-profile');
+    showProfilePicker();
+  }
+}
+
+function enterApp() {
+  document.getElementById('profile-picker').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('profile-switch-btn').textContent = currentProfile;
+
+  // Detach old listeners
+  if (unsubWorkouts) unsubWorkouts();
+  if (unsubWeight) unsubWeight();
+  if (unsubCustomPlan) unsubCustomPlan();
+
+  // Attach profile-scoped listeners
+  unsubWorkouts = db.collection(profileCollection('workouts')).orderBy('createdAt', 'desc').onSnapshot(function(snap) {
+    workouts = snap.docs.map(function(d) { return Object.assign({ _fbId: d.id }, d.data()); });
+    renderStats();
+    if (currentTab === 'history') renderHistory();
+    if (currentTab === 'charts') renderCharts();
+    firebaseReady = true;
+  });
+
+  unsubWeight = db.collection(profileCollection('weightEntries')).orderBy('createdAt', 'desc').onSnapshot(function(snap) {
+    weightEntries = snap.docs.map(function(d) { return Object.assign({ _fbId: d.id }, d.data()); });
+    renderStats();
+    if (currentTab === 'history') renderHistory();
+    if (currentTab === 'charts') renderCharts();
+  });
+
+  // Custom plan exercises (shared across profiles)
+  unsubCustomPlan = db.collection('customPlanExercises').orderBy('createdAt', 'desc').onSnapshot(function(snap) {
+    customPlanExercises = snap.docs.map(function(d) { return Object.assign({ _fbId: d.id }, d.data()); });
+    if (currentTab === 'plan') renderPlan();
+  });
+
   renderStats();
-  if (currentTab === 'history') renderHistory();
-  if (currentTab === 'charts') renderCharts();
-});
+  renderPlan();
+}
 
 var TYPES = [
   { id:'strength', label:'Strength', icon:'🏋️' },
@@ -390,11 +512,11 @@ function saveWorkout() {
   const exs = exercises.filter(e => e.name);
   if (!dur && exs.length === 0) return;
   const entry = { id: Date.now().toString(), date: todayISO(), type: workoutType, duration: parseInt(dur) || 0, notes: nts, exercises: exs, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
-  db.collection('workouts').add(entry);
+  db.collection(profileCollection('workouts')).add(entry);
   // Also save weight if present
   const wi = document.getElementById('weight-input').value;
   if (wi) {
-    db.collection('weightEntries').add({ id: (Date.now()+1).toString(), date: todayISO(), value: parseFloat(wi), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    db.collection(profileCollection('weightEntries')).add({ id: (Date.now()+1).toString(), date: todayISO(), value: parseFloat(wi), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     document.getElementById('weight-input').value = '';
   }
   document.getElementById('duration-input').value = '';
@@ -409,7 +531,7 @@ function saveWorkout() {
 function saveWeight() {
   const v = document.getElementById('weight-input').value;
   if (!v) return;
-  db.collection('weightEntries').add({ id: Date.now().toString(), date: todayISO(), value: parseFloat(v), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+  db.collection(profileCollection('weightEntries')).add({ id: Date.now().toString(), date: todayISO(), value: parseFloat(v), createdAt: firebase.firestore.FieldValue.serverTimestamp() });
   document.getElementById('weight-input').value = '';
   showToast('Weight logged!');
 }
@@ -440,8 +562,8 @@ function renderHistory() {
   document.getElementById('tab-history').innerHTML = html;
 }
 
-function deleteWorkout(fbId) { db.collection('workouts').doc(fbId).delete(); showToast('Deleted'); }
-function deleteWeight(fbId) { db.collection('weightEntries').doc(fbId).delete(); showToast('Deleted'); }
+function deleteWorkout(fbId) { db.collection(profileCollection('workouts')).doc(fbId).delete(); showToast('Deleted'); }
+function deleteWeight(fbId) { db.collection(profileCollection('weightEntries')).doc(fbId).delete(); showToast('Deleted'); }
 
 // ===== CHARTS (SVG) =====
 function renderCharts() {
@@ -770,43 +892,101 @@ function getTodayDayIndex() {
 
 function renderPlan() {
   const todayIdx = getTodayDayIndex();
-  // Auto-open today's workout
   if (todayIdx >= 0) openPlanDays[todayIdx] = true;
 
-  let html = '';
+  // Merge custom exercises into plan days
+  var mergedPlan = PLAN.map(function(day, di) {
+    var customForDay = customPlanExercises.filter(function(c) { return c.dayIndex === di; });
+    return {
+      day: day.day, when: day.when, desc: day.desc, type: day.type,
+      exercises: day.exercises.concat(customForDay.map(function(c) {
+        return { name: c.name, sets: c.sets || '-', reps: c.reps || '', notes: c.notes || '', _custom: true, _fbId: c._fbId };
+      }))
+    };
+  });
 
-  // Goal banner
+  // Check for custom days (dayIndex >= PLAN.length)
+  var customDays = {};
+  customPlanExercises.forEach(function(c) {
+    if (c.dayIndex >= PLAN.length) {
+      if (!customDays[c.dayIndex]) customDays[c.dayIndex] = { day: c.dayName || 'Custom Day', when: c.dayWhen || '', desc: c.dayDesc || '', type: 'strength', exercises: [], dayIndex: c.dayIndex };
+      customDays[c.dayIndex].exercises.push({ name: c.name, sets: c.sets || '-', reps: c.reps || '', notes: c.notes || '', _custom: true, _fbId: c._fbId });
+    }
+  });
+  var allDays = mergedPlan.concat(Object.values(customDays));
+
+  var html = '';
   html += '<div class="plan-goal"><div class="plan-goal-title">🎯 194 lb → &lt;190 lb by Memorial Day</div><div class="plan-goal-text">Chest definition + fat loss · ~11 weeks · 2,100–2,300 cal/day · 170–195g protein</div></div>';
 
-  PLAN.forEach((day, di) => {
-    const isOpen = openPlanDays[di];
-    const isToday = di === todayIdx;
-    html += `<div class="card plan-day" style="${isToday ? 'border-color:#2a2018' : ''}">`;
-    html += `<div class="plan-day-header" onclick="togglePlanDay(${di})">`;
-    html += `<div><div class="plan-day-title">${isToday ? '▸ ' : ''}${day.day}</div><div class="plan-day-sub">${day.when} · ${day.desc}</div></div>`;
-    html += `<span class="plan-chevron ${isOpen ? 'open' : ''}">›</span></div>`;
+  allDays.forEach(function(day, di) {
+    var isOpen = openPlanDays[di];
+    var isToday = di === todayIdx;
+    html += '<div class="card plan-day" style="' + (isToday ? 'border-color:#2a2018' : '') + '">';
+    html += '<div class="plan-day-header" onclick="togglePlanDay(' + di + ')">';
+    html += '<div><div class="plan-day-title">' + (isToday ? '▸ ' : '') + day.day + '</div><div class="plan-day-sub">' + day.when + ' · ' + day.desc + '</div></div>';
+    html += '<span class="plan-chevron ' + (isOpen ? 'open' : '') + '">›</span></div>';
 
     if (isOpen) {
-      day.exercises.forEach((ex, ei) => {
-        html += `<div class="plan-exercise" onclick="addPlanExercise(${di},${ei})">`;
-        html += `<div><div class="plan-exercise-name">${ex.name}</div>`;
-        if (ex.notes) html += `<div class="plan-note">${ex.notes}</div>`;
-        html += `</div>`;
-        html += `<div class="plan-exercise-detail">${ex.sets !== '-' ? ex.sets + ' × ' + ex.reps : ex.reps}</div>`;
-        html += `<div class="plan-exercise-add">+</div>`;
-        html += `</div>`;
+      day.exercises.forEach(function(ex, ei) {
+        html += '<div class="plan-exercise" onclick="addPlanExerciseMerged(' + di + ',' + ei + ')">';
+        html += '<div><div class="plan-exercise-name">' + ex.name + (ex._custom ? ' <span style="color:#555;font-size:10px">✎</span>' : '') + '</div>';
+        if (ex.notes) html += '<div class="plan-note">' + ex.notes + '</div>';
+        html += '</div>';
+        html += '<div class="plan-exercise-detail">' + (ex.sets !== '-' ? ex.sets + ' × ' + ex.reps : ex.reps) + '</div>';
+        if (ex._custom) {
+          html += '<button class="remove-btn" onclick="event.stopPropagation();deleteCustomExercise(\'' + ex._fbId + '\')" style="color:#444;font-size:16px">×</button>';
+        }
+        html += '<div class="plan-exercise-add">+</div>';
+        html += '</div>';
       });
+
+      // Log All button
       if (day.type === 'strength') {
-        html += `<button class="plan-log-btn" onclick="addAllPlanExercises(${di})">Log All ${day.day.split('—')[1]?.trim() || 'Exercises'}</button>`;
+        html += '<button class="plan-log-btn" onclick="addAllMergedExercises(' + di + ')">Log All ' + (day.day.split('—')[1]?.trim() || 'Exercises') + '</button>';
       }
+
+      // Add exercise form
+      html += '<div class="plan-add-form" id="plan-add-form-' + di + '">';
+      html += '<div style="font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Add Exercise</div>';
+      html += '<div style="display:flex;gap:6px">';
+      html += '<input class="input" placeholder="Exercise name" id="plan-add-name-' + di + '" style="flex:2">';
+      html += '<input class="input" placeholder="Sets" id="plan-add-sets-' + di + '" style="flex:.6">';
+      html += '<input class="input" placeholder="Reps" id="plan-add-reps-' + di + '" style="flex:.6">';
+      html += '</div>';
+      html += '<input class="input" placeholder="Notes (optional)" id="plan-add-notes-' + di + '">';
+      html += '<button class="primary-btn" style="margin-top:4px" onclick="addCustomExercise(' + di + ')">Add to ' + day.day.split('—')[0].trim() + '</button>';
+      html += '</div>';
     }
     html += '</div>';
   });
 
-  // Progression note
+  // Add new custom day button
+  html += '<button class="add-ex-btn" style="margin-top:8px;padding:12px" onclick="addCustomDay()">+ Add Custom Workout Day</button>';
+
   html += '<div style="font-size:11px;color:#444;text-align:center;padding:12px 0">Rest: 90–120s compounds · 60–90s accessories<br>Add 5 lb upper / 10 lb lower when you hit top of rep range</div>';
 
   document.getElementById('tab-plan').innerHTML = html;
+}
+
+// Store merged plan for reference by add functions
+function getMergedPlan() {
+  var mergedPlan = PLAN.map(function(day, di) {
+    var customForDay = customPlanExercises.filter(function(c) { return c.dayIndex === di; });
+    return {
+      day: day.day, when: day.when, desc: day.desc, type: day.type,
+      exercises: day.exercises.concat(customForDay.map(function(c) {
+        return { name: c.name, sets: c.sets || '-', reps: c.reps || '', notes: c.notes || '', _custom: true, _fbId: c._fbId };
+      }))
+    };
+  });
+  var customDays = {};
+  customPlanExercises.forEach(function(c) {
+    if (c.dayIndex >= PLAN.length) {
+      if (!customDays[c.dayIndex]) customDays[c.dayIndex] = { day: c.dayName || 'Custom Day', when: c.dayWhen || '', desc: c.dayDesc || '', type: 'strength', exercises: [], dayIndex: c.dayIndex };
+      customDays[c.dayIndex].exercises.push({ name: c.name, sets: c.sets || '-', reps: c.reps || '', notes: c.notes || '', _custom: true, _fbId: c._fbId });
+    }
+  });
+  return mergedPlan.concat(Object.values(customDays));
 }
 
 function togglePlanDay(idx) {
@@ -814,31 +994,28 @@ function togglePlanDay(idx) {
   renderPlan();
 }
 
-function addPlanExercise(dayIdx, exIdx) {
-  const ex = PLAN[dayIdx].exercises[exIdx];
-  const repsClean = ex.reps.split('-').pop().replace('/leg','');
-  // Add to exercise list in log tab
-  const newEx = { name: ex.name, sets: ex.sets !== '-' ? ex.sets : '', reps: repsClean, weight: '' };
-  // Replace empty first row or append
+function addPlanExerciseMerged(dayIdx, exIdx) {
+  var allDays = getMergedPlan();
+  var ex = allDays[dayIdx].exercises[exIdx];
+  var repsClean = ex.reps.split('-').pop().replace('/leg','');
+  var newEx = { name: ex.name, sets: ex.sets !== '-' ? ex.sets : '', reps: repsClean, weight: '' };
   if (exercises.length === 1 && !exercises[0].name) {
     exercises[0] = newEx;
   } else {
     exercises.push(newEx);
   }
-  workoutType = PLAN[dayIdx].type;
+  workoutType = allDays[dayIdx].type;
   renderTypeGrid();
   renderExercises();
   showToast(ex.name + ' added to log');
 }
 
-function addAllPlanExercises(dayIdx) {
-  const day = PLAN[dayIdx];
-  exercises = day.exercises.filter(e => e.sets !== '-').map(ex => ({
-    name: ex.name,
-    sets: ex.sets,
-    reps: ex.reps.split('-').pop().replace('/leg',''),
-    weight: ''
-  }));
+function addAllMergedExercises(dayIdx) {
+  var allDays = getMergedPlan();
+  var day = allDays[dayIdx];
+  exercises = day.exercises.filter(function(e) { return e.sets !== '-'; }).map(function(ex) {
+    return { name: ex.name, sets: ex.sets, reps: ex.reps.split('-').pop().replace('/leg',''), weight: '' };
+  });
   workoutType = day.type;
   renderTypeGrid();
   renderExercises();
@@ -847,11 +1024,58 @@ function addAllPlanExercises(dayIdx) {
   showToast('All ' + (day.day.split('—')[1]?.trim() || 'exercises') + ' loaded!');
 }
 
+function addCustomExercise(dayIdx) {
+  var name = document.getElementById('plan-add-name-' + dayIdx).value.trim();
+  if (!name) return;
+  var sets = document.getElementById('plan-add-sets-' + dayIdx).value.trim();
+  var reps = document.getElementById('plan-add-reps-' + dayIdx).value.trim();
+  var notes = document.getElementById('plan-add-notes-' + dayIdx).value.trim();
+  db.collection('customPlanExercises').add({
+    dayIndex: dayIdx,
+    name: name,
+    sets: sets || '3',
+    reps: reps || '10',
+    notes: notes,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  showToast(name + ' added to plan');
+}
+
+function deleteCustomExercise(fbId) {
+  db.collection('customPlanExercises').doc(fbId).delete();
+  showToast('Removed from plan');
+}
+
+function addCustomDay() {
+  var name = prompt('Workout day name (e.g. "Day 5 — Cardio"):');
+  if (!name) return;
+  var when = prompt('When? (e.g. "Tuesday"):') || '';
+  var desc = prompt('Description (e.g. "HIIT + conditioning"):') || '';
+  // Find next available dayIndex
+  var maxIdx = PLAN.length - 1;
+  customPlanExercises.forEach(function(c) { if (c.dayIndex > maxIdx) maxIdx = c.dayIndex; });
+  var newIdx = maxIdx + 1;
+  // Add a placeholder exercise so the day appears
+  db.collection('customPlanExercises').add({
+    dayIndex: newIdx,
+    dayName: name,
+    dayWhen: when,
+    dayDesc: desc,
+    name: 'New Exercise',
+    sets: '3',
+    reps: '10',
+    notes: 'Edit or replace this',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  openPlanDays[newIdx] = true;
+  showToast(name + ' created');
+}
+
 // ===== BOOT =====
 renderTypeGrid();
 renderExercises();
 renderStats();
-renderPlan();
+loadProfiles();
 
 // Expose functions to onclick handlers in HTML
 window.switchTab = switchTab;
@@ -869,8 +1093,15 @@ window.deleteWorkout = deleteWorkout;
 window.deleteWeight = deleteWeight;
 window.selectExercise = selectExercise;
 window.togglePlanDay = togglePlanDay;
-window.addPlanExercise = addPlanExercise;
-window.addAllPlanExercises = addAllPlanExercises;
+window.addPlanExerciseMerged = addPlanExerciseMerged;
+window.addAllMergedExercises = addAllMergedExercises;
+window.addCustomExercise = addCustomExercise;
+window.deleteCustomExercise = deleteCustomExercise;
+window.addCustomDay = addCustomDay;
+window.selectProfile = selectProfile;
+window.createProfile = createProfile;
+window.deleteProfile = deleteProfile;
+window.showProfilePicker = showProfilePicker;
 window.exercises = exercises;
 
 }); // end DOMContentLoaded
